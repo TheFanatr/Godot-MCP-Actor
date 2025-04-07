@@ -24,7 +24,7 @@ func _initialize_command_processors():
 	var project_commands = MCPProjectCommands.new()
 	var editor_commands = MCPEditorCommands.new()
 	var editor_script_commands = MCPEditorScriptCommands.new()  # Add our new processor
-	var file_commands = preload("res://addons/godot_mcp/commands/file_commands.gd").new()  # Add new processor
+	var file_commands = MCPFileCommands.new()  # Add new processor
 	
 	# Set server reference for all processors
 	node_commands._websocket_server = _websocket_server
@@ -79,4 +79,3 @@ func _send_error(client_id: int, message: String, command_id: String) -> void:
 	
 	_websocket_server.send_response(client_id, response)
 	print("Error: %s" % message)
-
