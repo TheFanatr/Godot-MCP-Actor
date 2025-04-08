@@ -1,7 +1,7 @@
 @tool
 extends Control
 
-var websocket_server: MCPWebSocketServer
+var mcp_server  # Reference to the C# Main class
 var status_label: Label
 var port_input: SpinBox
 var start_button: Button
@@ -16,62 +16,80 @@ func _ready():
 	stop_button = $VBoxContainer/ButtonsContainer/StopButton
 	connection_count_label = $VBoxContainer/ConnectionsContainer/CountLabel
 	log_text = $VBoxContainer/LogContainer/LogText
-	
+
 	start_button.pressed.connect(_on_start_button_pressed)
 	stop_button.pressed.connect(_on_stop_button_pressed)
 	port_input.value_changed.connect(_on_port_changed)
-	
+
+	# Find the MCP server instance
+	await get_tree().process_frame
+	_find_mcp_server()
+
 	# Initial UI setup
 	_update_ui()
-	
-	# Setup server signals once it's available
-	await get_tree().process_frame
-	if websocket_server:
-		websocket_server.connect("client_connected", Callable(self, "_on_client_connected"))
-		websocket_server.connect("client_disconnected", Callable(self, "_on_client_disconnected"))
-		websocket_server.connect("command_received", Callable(self, "_on_command_received"))
-		
-		port_input.value = websocket_server.get_port()
+
+func _find_mcp_server():
+	# Try to find the Main.cs instance
+	if Engine.has_meta("GodotMCPPlugin"):
+		var plugin = Engine.get_meta("GodotMCPPlugin")
+		# Check if it has the required methods instead of checking type
+		if plugin.has_method("IsServerActive") and plugin.has_method("StartServer"):
+			mcp_server = plugin
+			_log_message("Found MCP server instance")
+
+			# Connect signals
+			mcp_server.connect("client_connected", Callable(self, "_on_client_connected"))
+			mcp_server.connect("client_disconnected", Callable(self, "_on_client_disconnected"))
+			mcp_server.connect("command_received", Callable(self, "_on_command_received"))
+
+			# Update port input
+			port_input.value = mcp_server.GetPort()
+
+			_update_ui()
+		else:
+			_log_message("Error: Plugin instance does not have required methods")
+	else:
+		_log_message("Error: Could not find MCP server instance")
 
 func _update_ui():
-	if not websocket_server:
+	if not mcp_server:
 		status_label.text = "Server: Not initialized"
 		start_button.disabled = true
 		stop_button.disabled = true
 		port_input.editable = true
 		connection_count_label.text = "0"
 		return
-	
-	var is_active = websocket_server.is_server_active()
-	
+
+	var is_active = mcp_server.IsServerActive()
+
 	status_label.text = "Server: " + ("Running" if is_active else "Stopped")
 	start_button.disabled = is_active
 	stop_button.disabled = not is_active
 	port_input.editable = not is_active
-	
+
 	if is_active:
-		connection_count_label.text = str(websocket_server.get_client_count())
+		connection_count_label.text = str(mcp_server.GetClientCount())
 	else:
 		connection_count_label.text = "0"
 
 func _on_start_button_pressed():
-	if websocket_server:
-		var result = websocket_server.start_server()
+	if mcp_server:
+		var result = mcp_server.StartServer()
 		if result == OK:
-			_log_message("Server started on port " + str(websocket_server.get_port()))
+			_log_message("Server started on port " + str(mcp_server.GetPort()))
 		else:
 			_log_message("Failed to start server: " + str(result))
 		_update_ui()
 
 func _on_stop_button_pressed():
-	if websocket_server:
-		websocket_server.stop_server()
+	if mcp_server:
+		mcp_server.StopServer()
 		_log_message("Server stopped")
 		_update_ui()
 
 func _on_port_changed(new_port: float):
-	if websocket_server:
-		websocket_server.set_port(int(new_port))
+	if mcp_server:
+		mcp_server.SetPort(int(new_port))
 		_log_message("Port changed to " + str(int(new_port)))
 
 func _on_client_connected(client_id: int):
