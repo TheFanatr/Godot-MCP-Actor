@@ -2,55 +2,28 @@
 class_name MCPBaseCommandProcessor
 extends Node
 
-# Signal emitted when a command has completed processing
-signal command_completed(client_id, command_type, result, command_id)
-
-# Reference to the server - passed by the command handler
-var _websocket_server = null
-
 # Must be implemented by subclasses
-func process_command(client_id: int, command_type: String, params: Dictionary, command_id: String) -> bool:
+# Returns a Dictionary with either a success result or an error message
+func process_command(command_type: String, params: Dictionary) -> Dictionary:
 	push_error("BaseCommandProcessor.process_command called directly")
-	return false
+	return _create_error_response("BaseCommandProcessor.process_command called directly")
 
 # Helper functions common to all command processors
-func _send_success(client_id: int, result: Dictionary, command_id: String) -> void:
-	var response = {
+func _create_success_response(result: Dictionary) -> Dictionary:
+	return {
 		"status": "success",
 		"result": result
 	}
 
-	if not command_id.is_empty():
-		response["commandId"] = command_id
-
-	# Emit the signal for local processing (useful for testing)
-	command_completed.emit(client_id, "success", result, command_id)
-
-	# Send to MCP server if available
-	if _websocket_server:
-		_websocket_server.SendResponse(client_id, response)
-
-func _send_error(client_id: int, message: String, command_id: String) -> void:
-	var response = {
+func _create_error_response(message: String) -> Dictionary:
+	return {
 		"status": "error",
 		"message": message
 	}
 
-	if not command_id.is_empty():
-		response["commandId"] = command_id
-
-	# Emit the signal for local processing (useful for testing)
-	var error_result = {"error": message}
-	command_completed.emit(client_id, "error", error_result, command_id)
-
-	# Send to MCP server if available
-	if _websocket_server:
-		_websocket_server.SendResponse(client_id, response)
-	print("Error: %s" % message)
-
 # Common utility methods
 func _get_editor_node(path: String) -> Node:
-	var plugin = Engine.get_meta("GodotMCPPlugin")
+	var plugin = Engine.get_meta("GodotMCP")
 	if not plugin:
 		print("GodotMCPPlugin not found in Engine metadata")
 		return null

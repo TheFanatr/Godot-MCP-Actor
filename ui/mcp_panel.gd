@@ -30,8 +30,8 @@ func _ready():
 
 func _find_mcp_server():
 	# Try to find the Main.cs instance
-	if Engine.has_meta("GodotMCPPlugin"):
-		var plugin = Engine.get_meta("GodotMCPPlugin")
+	if Engine.has_meta("GodotMCP"):
+		var plugin = Engine.get_meta("GodotMCP")
 		# Check if it has the required methods instead of checking type
 		if plugin.has_method("IsServerActive") and plugin.has_method("StartServer"):
 			mcp_server = plugin

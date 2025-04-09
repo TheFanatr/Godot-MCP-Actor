@@ -5,7 +5,7 @@ extends Node
 var _mcp_server
 var _command_processors = []
 
-func _initialize_command_processors(mcp_server):
+func initialize_command_processors(mcp_server):
 	_mcp_server = mcp_server
 
 	# Create and add all command processors
@@ -42,31 +42,19 @@ func _initialize_command_processors(mcp_server):
 	add_child(project_commands)
 	add_child(editor_commands)
 	add_child(editor_script_commands)
-	add_child(file_commands)  # Add as child
+	add_child(file_commands)
 
-func _handle_command(client_id: int, command: Dictionary) -> void:
-	var command_type = command.get("type", "")
+func handle_command(command: Dictionary) -> Dictionary:
+	var command_type = command.get("command_type", "")
 	var params = command.get("params", {})
-	var command_id = command.get("commandId", "")
 
-	print("Processing command: %s" % command_type)
-
-	# Try each processor until one handles the command
+	# Try each command processor until one handles the command
 	for processor in _command_processors:
-		if processor.process_command(client_id, command_type, params, command_id):
-			return
+		var response = processor.process_command(command_type, params)
+		if response.size() > 0:
+			return response
 
-	# If no processor handled the command, send an error
-	_send_error(client_id, "Unknown command: %s" % command_type, command_id)
-
-func _send_error(client_id: int, message: String, command_id: String) -> void:
-	var response = {
+	return {
 		"status": "error",
-		"message": message
+		"message": "Unknown command: " + command_type
 	}
-
-	if not command_id.is_empty():
-		response["commandId"] = command_id
-
-	_mcp_server.SendResponse(client_id, response)
-	print("Error: %s" % message)
